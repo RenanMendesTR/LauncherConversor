@@ -1,5 +1,6 @@
 import sys, os, ftplib, zipfile, subprocess, io, json
 from PyQt6.QtWidgets import QApplication, QMessageBox
+from PyQt6.QtGui import QIcon
 from launcher_ui import LauncherUI
 from pathlib import Path
 from login_main import LoginWindow
@@ -23,9 +24,9 @@ FTP_ROOT_PATH = '/unidades/Pub/Conversores/[Conversor Thomson Reuters]/Test_Laun
 
 class LauncherApp(LauncherUI):
     def __init__(self):
-        super().__init__()  # monta a UI definida em launcher_ui.py
 
-        # Apenas conectores e inicializações (SEM criar QApplication aqui)
+        super().__init__()
+
         self.btn_close.clicked.connect(self.close)
         self.btn_min.clicked.connect(self.showMinimized)
         self.button_update.clicked.connect(self.check_updates)
@@ -49,7 +50,6 @@ class LauncherApp(LauncherUI):
                 self.label_status.setText("Verificando versão no servidor...")
                 QApplication.processEvents()
 
-                # Baixa o arquivo version.json diretamente da pasta FTP
                 version_data = io.BytesIO()
                 ftp.retrbinary("RETR version.json", version_data.write)
                 version_data.seek(0)
@@ -143,11 +143,21 @@ class LauncherApp(LauncherUI):
             QMessageBox.warning(self, "Erro", f"Não foi possível iniciar o preset:\n{e}")
 
 
+def resource_path(relative_path):
+    import sys, os
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.abspath("."), relative_path)
+
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
+    app.setWindowIcon(QIcon(resource_path("favicon.ico")))
+
     login_dialog = LoginWindow()
     result = login_dialog.exec()
+
     if result == QDialog.DialogCode.Accepted:
         w = LauncherApp()
         w.show()

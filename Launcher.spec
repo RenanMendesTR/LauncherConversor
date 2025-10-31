@@ -5,7 +5,7 @@ a = Analysis(
     ['launcher_main.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('launcher_ui.py', '.'), ('login_ui.py', '.'), ('login_main.py', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -35,5 +35,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['icone.ico'],
+    icon=['favicon.ico'],
 )

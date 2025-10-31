@@ -12,7 +12,6 @@ class LoginWindow(LoginUI):
         self.btn_cancel.clicked.connect(self.reject)
         self.input_pass.returnPressed.connect(self.on_try_login)
 
-    # --- LOGIN ---
     def on_try_login(self):
         user = self.input_user.text().strip()
         password = self.input_pass.text().strip()

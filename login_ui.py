@@ -48,7 +48,6 @@ class LoginUI(QDialog):
         wrapper.setContentsMargins(18, 18, 18, 18)
         wrapper.addLayout(form_layout)
 
-        # Estilo visual igual ao launcher
         self.setStyleSheet("""
             QWidget#main_widget {
                 background-color: qlineargradient(
@@ -78,7 +77,6 @@ class LoginUI(QDialog):
             QPushButton:hover { background-color: #f28e3c; }
         """)
 
-        # 🎬 Inicia fade ao abrir
         self.start_fade_in()
 
     def start_fade_in(self):

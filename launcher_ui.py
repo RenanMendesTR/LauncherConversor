@@ -24,7 +24,7 @@ class LauncherUI(QWidget):
         layout = QVBoxLayout(self.container)
         layout.setContentsMargins(8, 8, 8, 8)
 
-        # ---- Barra superior personalizada ----
+        # Barra superior personalizada
         upper_bar = QHBoxLayout()
         upper_bar.setContentsMargins(12, 0, 12, 0)
 
@@ -67,7 +67,7 @@ class LauncherUI(QWidget):
         upper_bar.addWidget(self.btn_min)
         upper_bar.addWidget(self.btn_close)
 
-        # ---- Status e barra de progresso ----
+        # Status e barra de progresso
         self.label_status = QLabel("Pronto")
         self.label_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.label_status.setStyleSheet("font-family: Calibri; color: white; font-size: 16px;")
@@ -76,7 +76,7 @@ class LauncherUI(QWidget):
         self.progress.setRange(0, 100)
         self.progress.setValue(0)
 
-        # ---- Botões principais ----
+        # Botões principais
         self.button_update = QPushButton("Verificar Atualizações")
         self.button_update.setStyleSheet("""
             QPushButton {
@@ -119,7 +119,7 @@ class LauncherUI(QWidget):
         self.button_preset.setEnabled(False)
         self.button_preset.setStyleSheet(self.button_open_inactive)
 
-        # ---- Layout principal ----
+        # Layout principal
         layout.addLayout(upper_bar)
         layout.addStretch()
         layout.addWidget(self.label_status)
@@ -129,7 +129,7 @@ class LauncherUI(QWidget):
         layout.addWidget(self.button_open)
         layout.addWidget(self.button_preset)
 
-        # ---- Estilo geral ----
+        # Estilo geral
         self.setStyleSheet("""
             QWidget#main_widget {
                 background-color: qlineargradient(
@@ -171,8 +171,33 @@ class LauncherUI(QWidget):
         self.opacity_anim.setEndValue(1)
         self.opacity_anim.setEasingCurve(QEasingCurve.Type.InOutCubic)
         self.opacity_anim.start()
+        self.apply_messagebox_style()
 
-    # ---- Permite mover a janela ----
+    def apply_messagebox_style(self):
+        self.setStyleSheet(self.styleSheet() + """
+            QMessageBox {
+                background-color: #2b2b2b;
+                color: white;
+                font-family: Calibri;
+                font-size: 14px;
+            }
+            QMessageBox QLabel {
+                color: white;
+                font-family: Calibri;
+                font-size: 14px;
+            }
+            QMessageBox QPushButton {
+                background-color: #eb8125;
+                color: white;
+                font-weight: bold;
+                border-radius: 6px;
+                padding: 6px 10px;
+            }
+            QMessageBox QPushButton:hover {
+                background-color: #f28e3c;
+            }
+        """)
+
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self._mouse_drag_pos = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
