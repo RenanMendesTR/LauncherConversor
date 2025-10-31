@@ -3,6 +3,8 @@ from PyQt6.QtWidgets import QApplication, QMessageBox
 from launcher_ui import LauncherUI
 from pathlib import Path
 from PyQt6.QtCore import QTimer
+from login import LoginWindow
+from PyQt6.QtWidgets import QDialog
 
 if getattr(sys, 'frozen', False):
     BASE_DIR = Path(os.path.dirname(sys.executable))
@@ -19,9 +21,12 @@ FTP_USER = 'supuns'
 FTP_PASSWORD = '219a3bcb'
 FTP_ROOT_PATH = '/unidades/Pub/Conversores/[Conversor Thomson Reuters]/Test_Launcher'
 
+
 class LauncherApp(LauncherUI):
     def __init__(self):
-        super().__init__()
+        super().__init__()  # monta a UI definida em launcher_ui.py
+
+        # Apenas conectores e inicializações (SEM criar QApplication aqui)
         self.btn_close.clicked.connect(self.close)
         self.btn_min.clicked.connect(self.showMinimized)
         self.button_update.clicked.connect(self.check_updates)
@@ -74,7 +79,6 @@ class LauncherApp(LauncherUI):
             total_size = ftp.size(file_name)
             downloaded = 0
 
-            # --- DOWNLOAD COM PROGRESSO ---
             self.label_status.setText("Baixando atualização...")
             self.progress.setValue(0)
             QApplication.processEvents()
@@ -90,7 +94,6 @@ class LauncherApp(LauncherUI):
 
                 ftp.retrbinary(f"RETR {file_name}", callback)
 
-            # --- EXTRAÇÃO COM PROGRESSO ---
             self.label_status.setText("Extraindo arquivos...")
             self.progress.setValue(0)
             QApplication.processEvents()
@@ -143,6 +146,12 @@ class LauncherApp(LauncherUI):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    w = LauncherApp()
-    w.show()
-    sys.exit(app.exec())
+
+    login_dialog = LoginWindow()
+    result = login_dialog.exec()
+    if result == QDialog.DialogCode.Accepted:
+        w = LauncherApp()
+        w.show()
+        sys.exit(app.exec())
+    else:
+        sys.exit(0)
