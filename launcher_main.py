@@ -153,7 +153,7 @@ def resource_path(relative_path):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
-    app.setWindowIcon(QIcon(resource_path("favicon.ico")))
+    app.setWindowIcon(QIcon(resource_path("icone_multi.ico")))
 
     login_dialog = LoginWindow()
     result = login_dialog.exec()
