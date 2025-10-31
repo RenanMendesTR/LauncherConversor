@@ -1,4 +1,4 @@
-import sys, os, requests, zipfile, subprocess
+import sys, os, ftplib, zipfile, subprocess, io, json
 from PyQt6.QtWidgets import QApplication, QMessageBox
 from launcher_ui import LauncherUI
 from pathlib import Path
@@ -12,8 +12,12 @@ else:
 # Corrige caminhos relativos
 LOCAL_APP_FOLDER = BASE_DIR / "Conversor"
 LOCAL_VERSION_FILE = LOCAL_APP_FOLDER / "version.txt"
-SERVER_VERSION_URL = "http://localhost:8000/version.json"
 
+# Configurações do servidor FTP
+FTP_HOST = 'ftp.dominiosistemas.com.br'
+FTP_USER = 'supuns'
+FTP_PASSWORD = '219a3bcb'
+FTP_ROOT_PATH = '/unidades/Pub/Conversores/[Conversor Thomson Reuters]/Test_Launcher'
 
 class LauncherApp(LauncherUI):
     def __init__(self):
@@ -26,8 +30,6 @@ class LauncherApp(LauncherUI):
         self.local_version = self.read_local_version()
         self.set_open_button_active(False)
 
-        # QTimer.singleShot(800, self.check_updates)
-
     def read_local_version(self):
         if LOCAL_VERSION_FILE.exists():
             return LOCAL_VERSION_FILE.read_text(encoding="utf-8").strip()
@@ -35,45 +37,76 @@ class LauncherApp(LauncherUI):
 
     def check_updates(self):
         try:
-            self.label_status.setText("Verificando atualizações...")
+            self.label_status.setText("Conectando ao servidor FTP...")
+            QApplication.processEvents()
+
+            with ftplib.FTP(FTP_HOST, FTP_USER, FTP_PASSWORD, timeout=20) as ftp:
+                ftp.cwd(FTP_ROOT_PATH)
+                self.label_status.setText("Verificando versão no servidor...")
+                QApplication.processEvents()
+
+                # Baixa o arquivo version.json diretamente da pasta FTP
+                version_data = io.BytesIO()
+                ftp.retrbinary("RETR version.json", version_data.write)
+                version_data.seek(0)
+                data = json.load(version_data)
+
+                remote_ver = data.get("version")
+                remote_file = data.get("file_name")
+
+                local_ver = self.read_local_version()
+                if local_ver == remote_ver:
+                    self.label_status.setText(f"Aplicativo já está atualizado! Versão {remote_ver}")
+                    self.progress.setValue(100)
+                    self.set_open_button_active(True)
+                    return
+
+                self.label_status.setText(f"Baixando versão {remote_ver}...")
+                QApplication.processEvents()
+                self.download_and_update(ftp, remote_file, remote_ver)
+
+        except Exception as e:
+            QMessageBox.warning(self, "Erro", f"Falha ao verificar atualizações:\n{e}")
+
+    def download_and_update(self, ftp, file_name, version):
+        try:
+            path_zip = Path("update.zip")
+            total_size = ftp.size(file_name)
+            downloaded = 0
+
+            # --- DOWNLOAD COM PROGRESSO ---
+            self.label_status.setText("Baixando atualização...")
             self.progress.setValue(0)
             QApplication.processEvents()
 
-            r = requests.get(SERVER_VERSION_URL, timeout=(5, 60))
-            data = r.json()
-
-            remote_ver = data.get("version")
-            url = data.get("download_url")
-
-            local_ver = self.read_local_version()
-            if local_ver == remote_ver:
-                self.label_status.setText(f"Aplicativo já está atualizado! Versão {remote_ver}")
-                self.progress.setValue(100)
-                self.set_open_button_active(True)
-                return
-
-            self.label_status.setText(f"Baixando versão {remote_ver}...")
-            self.download_and_update(url, remote_ver)
-
-        except Exception as e:
-            QMessageBox.warning(self, "Erro", str(e))
-
-    def download_and_update(self, url, version):
-        try:
-            response = requests.get(url, stream=True, timeout=(5, 120))
-            total = int(response.headers.get('content-length', 0))
-            downloaded = 0
-            path_zip = Path("update.zip")
-
             with open(path_zip, "wb") as f:
-                for chunk in response.iter_content(8192):
-                    f.write(chunk)
-                    downloaded += len(chunk)
-                    if total:
-                        self.progress.setValue(int(downloaded * 100 / total))
+                def callback(data):
+                    nonlocal downloaded
+                    f.write(data)
+                    downloaded += len(data)
+                    progress_value = int(downloaded * 100 / total_size)
+                    self.progress.setValue(progress_value)
+                    QApplication.processEvents()
+
+                ftp.retrbinary(f"RETR {file_name}", callback)
+
+            # --- EXTRAÇÃO COM PROGRESSO ---
+            self.label_status.setText("Extraindo arquivos...")
+            self.progress.setValue(0)
+            QApplication.processEvents()
 
             with zipfile.ZipFile(path_zip, "r") as zip_ref:
-                zip_ref.extractall(LOCAL_APP_FOLDER)
+                members = zip_ref.infolist()
+                total_files = len(members)
+                extracted = 0
+
+                for member in members:
+                    zip_ref.extract(member, LOCAL_APP_FOLDER)
+                    extracted += 1
+                    progress_value = int(extracted * 100 / total_files)
+                    self.progress.setValue(progress_value)
+                    QApplication.processEvents()
+
             os.remove(path_zip)
 
             LOCAL_VERSION_FILE.write_text(version, encoding="utf-8")
@@ -81,16 +114,15 @@ class LauncherApp(LauncherUI):
             self.progress.setValue(100)
             self.set_open_button_active(True)
             QMessageBox.information(self, "Sucesso", f"Atualização concluída para {version}.")
+
         except Exception as e:
-            QMessageBox.warning(self, "Erro", str(e))
+            QMessageBox.warning(self, "Erro", f"Falha ao atualizar:\n{e}")
 
     def open_app(self):
         app_path = LOCAL_APP_FOLDER / "start.exe"
-
         if not app_path.exists():
             QMessageBox.warning(self, "Erro", f"Arquivo não encontrado: {app_path}")
             return
-
         try:
             subprocess.Popen([str(app_path), "--auth", "THOMSON_KEY_2025"], cwd=LOCAL_APP_FOLDER)
             self.close()
@@ -99,11 +131,9 @@ class LauncherApp(LauncherUI):
 
     def open_preset(self):
         app_path = LOCAL_APP_FOLDER / "preset_medias.exe"
-
         if not app_path.exists():
             QMessageBox.warning(self, "Erro", f"Arquivo não encontrado: {app_path}")
             return
-
         try:
             subprocess.Popen([str(app_path), "--auth", "THOMSON_KEY_2025"], cwd=LOCAL_APP_FOLDER)
             self.close()
