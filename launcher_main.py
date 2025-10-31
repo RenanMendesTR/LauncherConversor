@@ -2,8 +2,7 @@ import sys, os, ftplib, zipfile, subprocess, io, json
 from PyQt6.QtWidgets import QApplication, QMessageBox
 from launcher_ui import LauncherUI
 from pathlib import Path
-from PyQt6.QtCore import QTimer
-from login import LoginWindow
+from login_main import LoginWindow
 from PyQt6.QtWidgets import QDialog
 
 if getattr(sys, 'frozen', False):
