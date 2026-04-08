@@ -18,7 +18,7 @@ LOCAL_VERSION_FILE = LOCAL_APP_FOLDER / "version.txt"
 # Configurações do servidor FTP
 FTP_HOST = 'ftp.dominiosistemas.com.br'
 FTP_USER = 'supuns'
-FTP_PASSWORD = '219a3bcb'
+FTP_PASSWORD = 'VyML6iNOFsyttonm35VR40WuAcyr'
 FTP_ROOT_PATH = '/unidades/Pub/Conversores/[Conversor Thomson Reuters]/Test_Launcher'
 
 
