@@ -4,4 +4,6 @@ build/*
 dist/*
 *.spec
 conversor/*
+Conversor eSocial XML/*
+Conversor Thomson Reuters/*
 

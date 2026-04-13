@@ -73,14 +73,33 @@ class LoginUI(QDialog):
             }
             QPushButton {
                 font-family: Calibri;
-                background-color: #eb8125;
-                color: white;
                 font-size: 14px;
+                font-weight: bold;
+                color: #1c0800;
+                background-color: qradialgradient(
+                    cx:0.5, cy:0.45, radius:0.85,
+                    fx:0.5, fy:0.3,
+                    stop:0   rgba(255, 200, 130, 255),
+                    stop:0.4 rgba(235, 129,  37, 255),
+                    stop:1   rgba(145,  68,   8, 255)
+                );
+                border-top:    1px solid rgba(255, 215, 155, 0.75);
+                border-bottom: 1px solid rgba(130,  58,   8, 0.65);
+                border-left:   1px solid rgba(245, 160,  75, 0.55);
+                border-right:  1px solid rgba(245, 160,  75, 0.55);
                 border-radius: 8px;
                 padding: 6px 10px;
-                font-weight: bold;
             }
-            QPushButton:hover { background-color: #f28e3c; }
+            QPushButton:hover {
+                background-color: qradialgradient(
+                    cx:0.5, cy:0.45, radius:0.85,
+                    fx:0.5, fy:0.3,
+                    stop:0   rgba(255, 215, 150, 255),
+                    stop:0.4 rgba(245, 145,  55, 255),
+                    stop:1   rgba(165,  82,  18, 255)
+                );
+                border-top: 1px solid rgba(255, 228, 175, 0.9);
+            }
             QCheckBox {
                 font-family: Calibri;
                 font-size: 13px;

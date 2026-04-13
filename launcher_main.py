@@ -12,14 +12,30 @@ if getattr(sys, 'frozen', False):
 else:
     BASE_DIR = Path(__file__).resolve().parent
 
-LOCAL_APP_FOLDER = BASE_DIR / "Conversor"
-LOCAL_UPDATE_RECORD = BASE_DIR / "last_update.txt"
-
-# Configurações do servidor FTP
-FTP_HOST = 'ftp.dominiosistemas.com.br'
-FTP_USER = 'supuns'
+# Credenciais FTP
+FTP_HOST     = 'ftp.dominiosistemas.com.br'
+FTP_USER     = 'supuns'
 FTP_PASSWORD = 'VyML6iNOFsyttonm35VR40WuAcyr'
-FTP_ROOT_PATH = '/unidades/Pub/Conversores/[Conversor Thomson Reuters]'
+
+# Configurações por aplicativo (índice = posição no ComboBox)
+APP_CONFIGS = {
+    0: {
+        "ftp_path":      "/unidades/Pub/Conversores/[Conversor Thomson Reuters]",
+        "zip_name":      "Conversor-Thomson-Reuters.zip",
+        "local_folder":  BASE_DIR / "Conversor Thomson Reuters",
+        "update_record": BASE_DIR / "last_update_thomson.txt",
+        "start_exe":     "start.exe",
+        "preset_exe":    "preset_medias.exe",
+    },
+    1: {
+        "ftp_path":      "/unidades/Pub/Conversores/[Conversor eSocial]",
+        "zip_name":      "conversorEsocial.zip",
+        "local_folder":  BASE_DIR / "Conversor eSocial XML",
+        "update_record": BASE_DIR / "last_update_esocial.txt",
+        "start_exe":     "main.exe",
+        "preset_exe":    None,
+    },
+}
 
 
 class LauncherApp(LauncherUI):
@@ -29,11 +45,42 @@ class LauncherApp(LauncherUI):
 
         self.btn_close.clicked.connect(self.close)
         self.btn_min.clicked.connect(self.showMinimized)
-        self.button_update.clicked.connect(self.check_updates)
+        self.button_update.clicked.connect(self._on_update_clicked)
         self.button_open.clicked.connect(self.open_app)
         self.button_preset.clicked.connect(self.open_preset)
+        self.combo_app.currentIndexChanged.connect(self._on_app_changed)
 
-        app_installed = (LOCAL_APP_FOLDER / "start.exe").exists()
+        self._pending_remote_file = None
+        self._pending_remote_mdtm = None
+        self._pending_remote_size = None
+
+        self._load_app_state()
+
+    def set_open_button_active(self, active: bool):
+        if active:
+            self.button_open.setEnabled(True)
+            self.button_open.setStyleSheet(self.button_open_active)
+        else:
+            self.button_open.setEnabled(False)
+            self.button_open.setStyleSheet(self.button_open_inactive)
+
+        # Preset só é habilitado se o app suporta e está instalado
+        preset_active = active and self._cfg["preset_exe"] is not None
+        if preset_active:
+            self.button_preset.setEnabled(True)
+            self.button_preset.setStyleSheet(self.button_open_active)
+        else:
+            self.button_preset.setEnabled(False)
+            self.button_preset.setStyleSheet(self.button_open_inactive)
+
+    @property
+    def _cfg(self):
+        """Retorna a configuração do aplicativo atualmente selecionado."""
+        return APP_CONFIGS[self.combo_app.currentIndex()]
+
+    def _load_app_state(self):
+        """Carrega o estado (versão instalada, botões) para o app selecionado."""
+        app_installed = (self._cfg["local_folder"] / self._cfg["start_exe"]).exists()
         self.set_open_button_active(app_installed)
 
         record = self.read_local_record()
@@ -44,11 +91,19 @@ class LauncherApp(LauncherUI):
             self.label_status.setText(f"Última atualização: {self._format_mdtm(self._local_mdtm)}")
         elif not app_installed:
             self.label_status.setText("Aplicativo não encontrado. Clique em Atualizar para instalar.")
+        else:
+            self.label_status.setText("Pronto")
+
+    def _on_app_changed(self, index):
+        self.set_update_button_default()
+        self.progress.setValue(0)
+        self._load_app_state()
 
     def read_local_record(self):
         """Retorna (mdtm, size) do registro local ou None se não existir."""
-        if LOCAL_UPDATE_RECORD.exists():
-            parts = LOCAL_UPDATE_RECORD.read_text(encoding="utf-8").strip().split("|")
+        record_file = self._cfg["update_record"]
+        if record_file.exists():
+            parts = record_file.read_text(encoding="utf-8").strip().split("|")
             if len(parts) == 2:
                 try:
                     return parts[0], int(parts[1])
@@ -57,15 +112,15 @@ class LauncherApp(LauncherUI):
         return None
 
     def save_local_record(self, mdtm, size):
-        LOCAL_UPDATE_RECORD.write_text(f"{mdtm}|{size}", encoding="utf-8")
+        self._cfg["update_record"].write_text(f"{mdtm}|{size}", encoding="utf-8")
 
     def get_remote_zip(self, ftp):
-        """Lista o diretório FTP e retorna o nome do primeiro .zip encontrado."""
+        """Retorna o nome do arquivo zip do aplicativo no servidor FTP."""
+        target = self._cfg["zip_name"]
         files = ftp.nlst()
-        zips = [f for f in files if f.lower().endswith(".zip")]
-        if not zips:
-            raise RuntimeError("Nenhum arquivo .zip encontrado no servidor.")
-        return zips[0]
+        if target not in files:
+            raise RuntimeError(f"Arquivo '{target}' não encontrado no servidor.")
+        return target
 
     def _format_mdtm(self, mdtm):
         """Converte string MDTM (YYYYMMDDHHmmss) para formato legível."""
@@ -93,6 +148,12 @@ class LauncherApp(LauncherUI):
         self._set_version_display(self.label_version_local,  "Instalado: ", local_date,  local_color)
         self._set_version_display(self.label_version_remote, "Disponível:", remote_date, remote_color)
 
+    def _on_update_clicked(self):
+        if self._pending_remote_file:
+            self._start_download()
+        else:
+            self.check_updates()
+
     def check_updates(self):
         try:
             self.label_status.setText("Conectando ao servidor FTP...")
@@ -100,12 +161,12 @@ class LauncherApp(LauncherUI):
             QApplication.processEvents()
 
             with ftplib.FTP(FTP_HOST, FTP_USER, FTP_PASSWORD, timeout=20) as ftp:
-                ftp.cwd(FTP_ROOT_PATH)
+                ftp.cwd(self._cfg["ftp_path"])
                 self.label_status.setText("Verificando arquivos no servidor...")
                 QApplication.processEvents()
 
                 remote_file = self.get_remote_zip(ftp)
-                ftp.voidcmd("TYPE I")  # modo binário obrigatório para SIZE e RETR
+                ftp.voidcmd("TYPE I")
                 remote_mdtm = ftp.sendcmd(f"MDTM {remote_file}").split()[1]
                 remote_size = ftp.size(remote_file)
 
@@ -122,15 +183,44 @@ class LauncherApp(LauncherUI):
                         self.set_update_button_default()
                         return
 
-                self.label_status.setText("Nova versão detectada. Baixando...")
-                QApplication.processEvents()
-                self.download_and_update(ftp, remote_file, remote_mdtm, remote_size)
+                # Nova versão detectada — aguarda confirmação do usuário
+                self._pending_remote_file = remote_file
+                self._pending_remote_mdtm = remote_mdtm
+                self._pending_remote_size = remote_size
+                self.label_status.setText(
+                    f"Nova versão disponível: {self._format_mdtm(remote_mdtm)}"
+                )
+                self.button_update.setEnabled(True)
+                self.button_update.setText("⬇  Atualizar")
+                self.button_update.repaint()
 
         except Exception as e:
             self.set_update_button_default()
             QMessageBox.warning(self, "Erro", f"Falha ao verificar atualizações:\n{e}")
 
+    def _start_download(self):
+        try:
+            self.button_update.setEnabled(False)
+            self.label_status.setText("Conectando ao servidor FTP...")
+            QApplication.processEvents()
+
+            with ftplib.FTP(FTP_HOST, FTP_USER, FTP_PASSWORD, timeout=20) as ftp:
+                ftp.cwd(self._cfg["ftp_path"])
+                ftp.voidcmd("TYPE I")
+                self.download_and_update(
+                    ftp,
+                    self._pending_remote_file,
+                    self._pending_remote_mdtm,
+                    self._pending_remote_size,
+                )
+        except Exception as e:
+            self.set_update_button_default()
+            QMessageBox.warning(self, "Erro", f"Falha ao iniciar atualização:\n{e}")
+
     def set_update_button_default(self):
+        self._pending_remote_file = None
+        self._pending_remote_mdtm = None
+        self._pending_remote_size = None
         self.button_update.setEnabled(True)
         self.button_update.setText("Verificar Atualizações")
 
@@ -158,14 +248,15 @@ class LauncherApp(LauncherUI):
             self.progress.setValue(0)
             QApplication.processEvents()
 
-            LOCAL_APP_FOLDER.mkdir(parents=True, exist_ok=True)
+            local_folder = self._cfg["local_folder"]
+            local_folder.mkdir(parents=True, exist_ok=True)
             with zipfile.ZipFile(path_zip, "r") as zip_ref:
                 members = zip_ref.infolist()
                 total_files = len(members)
                 extracted = 0
 
                 for member in members:
-                    zip_ref.extract(member, LOCAL_APP_FOLDER)
+                    zip_ref.extract(member, local_folder)
                     extracted += 1
                     progress_value = int(extracted * 100 / total_files)
                     self.progress.setValue(progress_value)
@@ -188,23 +279,27 @@ class LauncherApp(LauncherUI):
             QMessageBox.warning(self, "Erro", f"Falha ao atualizar:\n{e}")
 
     def open_app(self):
-        app_path = LOCAL_APP_FOLDER / "start.exe"
+        folder   = self._cfg["local_folder"]
+        app_path = folder / self._cfg["start_exe"]
         if not app_path.exists():
             QMessageBox.warning(self, "Erro", f"Arquivo não encontrado: {app_path}")
             return
         try:
-            subprocess.Popen([str(app_path), "--auth", "THOMSON_KEY_2025"], cwd=LOCAL_APP_FOLDER)
+            subprocess.Popen([str(app_path), "--auth", "THOMSON_KEY_2025"], cwd=folder)
             self.close()
         except Exception as e:
             QMessageBox.warning(self, "Erro", f"Não foi possível iniciar o aplicativo:\n{e}")
 
     def open_preset(self):
-        app_path = LOCAL_APP_FOLDER / "preset_medias.exe"
+        if not self._cfg["preset_exe"]:
+            return
+        folder   = self._cfg["local_folder"]
+        app_path = folder / self._cfg["preset_exe"]
         if not app_path.exists():
             QMessageBox.warning(self, "Erro", f"Arquivo não encontrado: {app_path}")
             return
         try:
-            subprocess.Popen([str(app_path), "--auth", "THOMSON_KEY_2025"], cwd=LOCAL_APP_FOLDER)
+            subprocess.Popen([str(app_path), "--auth", "THOMSON_KEY_2025"], cwd=folder)
             self.close()
         except Exception as e:
             QMessageBox.warning(self, "Erro", f"Não foi possível iniciar o preset:\n{e}")
@@ -218,6 +313,11 @@ def resource_path(relative_path):
 
 
 if __name__ == "__main__":
+    # Evita o erro UpdateLayeredWindowIndirect em monitores com DPI scaling
+    from PyQt6.QtCore import Qt as _Qt
+    QApplication.setHighDpiScaleFactorRoundingPolicy(
+        _Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
+    )
     app = QApplication(sys.argv)
 
     app.setWindowIcon(QIcon(resource_path("icone_multi.ico")))

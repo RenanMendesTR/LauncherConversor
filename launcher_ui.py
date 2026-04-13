@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton, QProgressBar,
-    QHBoxLayout, QGraphicsDropShadowEffect
+    QHBoxLayout, QGraphicsDropShadowEffect, QComboBox
 )
 from PyQt6.QtGui import QColor
 from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve
@@ -10,7 +10,7 @@ class LauncherUI(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Inicializador Thomson Reuters ETL")
-        self.setFixedSize(480, 395)
+        self.setFixedSize(480, 435)
         self._mouse_drag_pos = None
 
         # Frameless + transparência
@@ -20,7 +20,7 @@ class LauncherUI(QWidget):
         # Container principal
         self.container = QWidget(self)
         self.container.setObjectName("main_widget")
-        self.container.setGeometry(0, 0, 480, 395)
+        self.container.setGeometry(0, 0, 480, 435)
         layout = QVBoxLayout(self.container)
         layout.setContentsMargins(8, 8, 8, 8)
 
@@ -76,35 +76,52 @@ class LauncherUI(QWidget):
         self.progress.setRange(0, 100)
         self.progress.setValue(0)
 
-        # Botões principais
-        self.button_update = QPushButton("Verificar Atualizações")
-        self.button_update.setStyleSheet("""
+        _neon_orange = """
             QPushButton {
                 font-family: Calibri;
                 font-size: 18px;
-                border-radius: 8px;
-                padding: 8px 12px;
-            }
-            QPushButton:disabled {
-                background-color: #555555;
-                color: #aaaaaa;
-            }
-        """)
-
-        self.button_open = QPushButton("Abrir Aplicativo")
-        self.button_open_active = """
-            QPushButton {
-                font-family: Calibri;
-                background-color: #eb8125;
-                color: white;
-                font-size: 18px;
+                font-weight: bold;
+                color: #1c0800;
+                background-color: qradialgradient(
+                    cx:0.5, cy:0.45, radius:0.85,
+                    fx:0.5, fy:0.3,
+                    stop:0   rgba(255, 200, 130, 255),
+                    stop:0.4 rgba(235, 129,  37, 255),
+                    stop:1   rgba(145,  68,   8, 255)
+                );
+                border-top:    1px solid rgba(255, 215, 155, 0.75);
+                border-bottom: 1px solid rgba(130,  58,   8, 0.65);
+                border-left:   1px solid rgba(245, 160,  75, 0.55);
+                border-right:  1px solid rgba(245, 160,  75, 0.55);
                 border-radius: 8px;
                 padding: 8px 12px;
             }
             QPushButton:hover {
-                background-color: #f28e3c;
+                background-color: qradialgradient(
+                    cx:0.5, cy:0.45, radius:0.85,
+                    fx:0.5, fy:0.3,
+                    stop:0   rgba(255, 215, 150, 255),
+                    stop:0.4 rgba(245, 145,  55, 255),
+                    stop:1   rgba(165,  82,  18, 255)
+                );
+                border-top: 1px solid rgba(255, 228, 175, 0.9);
             }
         """
+
+        # Botões principais
+        self.button_update = QPushButton("Verificar Atualizações")
+        self.button_update.setFixedHeight(44)
+        self.button_update.setStyleSheet(_neon_orange + """
+            QPushButton:disabled {
+                background-color: #555555;
+                color: #aaaaaa;
+                border: none;
+            }
+        """)
+
+        self.button_open = QPushButton("Abrir Aplicativo")
+        self.button_open.setFixedHeight(44)
+        self.button_open_active = _neon_orange
         self.button_open_inactive = """
             QPushButton {
                 font-family: Calibri;
@@ -120,6 +137,7 @@ class LauncherUI(QWidget):
         self.button_open.setStyleSheet(self.button_open_inactive)
 
         self.button_preset = QPushButton("Abrir Preset de Médias")
+        self.button_preset.setFixedHeight(44)
         self.button_preset.setEnabled(False)
         self.button_preset.setStyleSheet(self.button_open_inactive)
 
@@ -142,8 +160,26 @@ class LauncherUI(QWidget):
         self._set_version_display(self.label_version_local,  "Instalado: ", "—", "#555555")
         self._set_version_display(self.label_version_remote, "Disponível:", "—", "#555555")
 
+        # Seletor de aplicativo
+        combo_row = QHBoxLayout()
+        combo_row.setContentsMargins(4, 0, 4, 0)
+
+        lbl_app = QLabel("Aplicativo:")
+        lbl_app.setStyleSheet("font-family: Calibri; font-size: 13px; color: #aaaaaa;")
+        lbl_app.setFixedWidth(78)
+
+        self.combo_app = QComboBox()
+        self.combo_app.addItem("Conversor Thomson Reuters")
+        self.combo_app.addItem("Conversor eSocial XML")
+        self.combo_app.setFixedHeight(32)
+
+        combo_row.addWidget(lbl_app)
+        combo_row.addWidget(self.combo_app)
+
         # Layout principal
         layout.addLayout(upper_bar)
+        layout.addSpacing(4)
+        layout.addLayout(combo_row)
         layout.addStretch()
         layout.addWidget(self.label_status)
         layout.addWidget(self.progress)
@@ -164,13 +200,33 @@ class LauncherUI(QWidget):
             }
             QPushButton {
                 font-family: Calibri;
-                background-color: #eb8125;
-                color: white;
+                color: #1c0800;
+                font-weight: bold;
                 font-size: 14px;
+                background-color: qradialgradient(
+                    cx:0.5, cy:0.45, radius:0.85,
+                    fx:0.5, fy:0.3,
+                    stop:0   rgba(255, 200, 130, 255),
+                    stop:0.4 rgba(235, 129,  37, 255),
+                    stop:1   rgba(145,  68,   8, 255)
+                );
+                border-top:    1px solid rgba(255, 215, 155, 0.75);
+                border-bottom: 1px solid rgba(130,  58,   8, 0.65);
+                border-left:   1px solid rgba(245, 160,  75, 0.55);
+                border-right:  1px solid rgba(245, 160,  75, 0.55);
                 border-radius: 8px;
                 padding: 8px 12px;
             }
-            QPushButton:hover { background-color: #f28e3c; }
+            QPushButton:hover {
+                background-color: qradialgradient(
+                    cx:0.5, cy:0.45, radius:0.85,
+                    fx:0.5, fy:0.3,
+                    stop:0   rgba(255, 215, 150, 255),
+                    stop:0.4 rgba(245, 145,  55, 255),
+                    stop:1   rgba(165,  82,  18, 255)
+                );
+                border-top: 1px solid rgba(255, 228, 175, 0.9);
+            }
             QProgressBar {
                 min-height: 18px;
                 border-radius: 6px;
@@ -183,6 +239,38 @@ class LauncherUI(QWidget):
             QWidget#version_panel {
                 background: rgba(255,255,255,0.04);
                 border-radius: 6px;
+            }
+            QComboBox {
+                font-family: Calibri;
+                font-size: 14px;
+                color: white;
+                background-color: rgba(255, 255, 255, 0.07);
+                border: 1px solid rgba(235, 129, 37, 0.45);
+                border-radius: 6px;
+                padding: 4px 10px;
+            }
+            QComboBox:hover {
+                border: 1px solid rgba(235, 129, 37, 0.8);
+                background-color: rgba(255, 255, 255, 0.11);
+            }
+            QComboBox::drop-down {
+                subcontrol-origin: padding;
+                subcontrol-position: top right;
+                width: 26px;
+                border-left: 1px solid rgba(235, 129, 37, 0.3);
+                border-top-right-radius: 6px;
+                border-bottom-right-radius: 6px;
+            }
+            QComboBox QAbstractItemView {
+                font-family: Calibri;
+                font-size: 14px;
+                background-color: #1e0d02;
+                color: white;
+                selection-background-color: #eb8125;
+                selection-color: #1c0800;
+                border: 1px solid rgba(235, 129, 37, 0.5);
+                outline: none;
+                padding: 2px;
             }
         """)
 
