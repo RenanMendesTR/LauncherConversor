@@ -10,7 +10,7 @@ class LauncherUI(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Inicializador Thomson Reuters ETL")
-        self.setFixedSize(480, 360)
+        self.setFixedSize(480, 395)
         self._mouse_drag_pos = None
 
         # Frameless + transparência
@@ -20,7 +20,7 @@ class LauncherUI(QWidget):
         # Container principal
         self.container = QWidget(self)
         self.container.setObjectName("main_widget")
-        self.container.setGeometry(0, 0, 480, 360)
+        self.container.setGeometry(0, 0, 480, 395)
         layout = QVBoxLayout(self.container)
         layout.setContentsMargins(8, 8, 8, 8)
 
@@ -85,6 +85,10 @@ class LauncherUI(QWidget):
                 border-radius: 8px;
                 padding: 8px 12px;
             }
+            QPushButton:disabled {
+                background-color: #555555;
+                color: #aaaaaa;
+            }
         """)
 
         self.button_open = QPushButton("Abrir Aplicativo")
@@ -119,11 +123,31 @@ class LauncherUI(QWidget):
         self.button_preset.setEnabled(False)
         self.button_preset.setStyleSheet(self.button_open_inactive)
 
+        # Painel de informação de versões
+        self.version_panel = QWidget()
+        self.version_panel.setObjectName("version_panel")
+        version_vbox = QVBoxLayout(self.version_panel)
+        version_vbox.setContentsMargins(12, 6, 12, 6)
+        version_vbox.setSpacing(3)
+
+        self.label_version_local = QLabel()
+        self.label_version_local.setTextFormat(Qt.TextFormat.RichText)
+
+        self.label_version_remote = QLabel()
+        self.label_version_remote.setTextFormat(Qt.TextFormat.RichText)
+
+        version_vbox.addWidget(self.label_version_local)
+        version_vbox.addWidget(self.label_version_remote)
+
+        self._set_version_display(self.label_version_local,  "Instalado: ", "—", "#555555")
+        self._set_version_display(self.label_version_remote, "Disponível:", "—", "#555555")
+
         # Layout principal
         layout.addLayout(upper_bar)
         layout.addStretch()
         layout.addWidget(self.label_status)
         layout.addWidget(self.progress)
+        layout.addWidget(self.version_panel)
         layout.addStretch()
         layout.addWidget(self.button_update)
         layout.addWidget(self.button_open)
@@ -155,6 +179,10 @@ class LauncherUI(QWidget):
             QProgressBar::chunk {
                 border-radius: 6px;
                 background-color: #f28e3c;
+            }
+            QWidget#version_panel {
+                background: rgba(255,255,255,0.04);
+                border-radius: 6px;
             }
         """)
 
@@ -197,6 +225,12 @@ class LauncherUI(QWidget):
                 background-color: #f28e3c;
             }
         """)
+
+    def _set_version_display(self, label, prefix: str, value: str, color: str):
+        label.setText(
+            f'<span style="font-family:Calibri;font-size:12px;color:#888888;">{prefix}</span>'
+            f'&nbsp;&nbsp;<span style="font-family:Calibri;font-size:12px;font-weight:bold;color:{color};">{value}</span>'
+        )
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:

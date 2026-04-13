@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QDialog, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QGraphicsOpacityEffect
+from PyQt6.QtWidgets import QDialog, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QCheckBox, QGraphicsOpacityEffect
 from PyQt6.QtCore import Qt, QPropertyAnimation
 
 
@@ -6,7 +6,7 @@ class LoginUI(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Login - Conversor Domínio")
-        self.setFixedSize(420, 240)
+        self.setFixedSize(420, 265)
 
         # Frameless + transparência (igual ao launcher)
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
@@ -15,7 +15,7 @@ class LoginUI(QDialog):
         # Container visual
         self.container = QLabel(self)
         self.container.setObjectName("main_widget")
-        self.container.setGeometry(0, 0, 420, 240)
+        self.container.setGeometry(0, 0, 420, 265)
 
         # Campos
         self.label_title = QLabel("Entrar no SGD")
@@ -26,10 +26,15 @@ class LoginUI(QDialog):
         self.input_pass.setPlaceholderText("Senha")
         self.input_pass.setEchoMode(QLineEdit.EchoMode.Password)
 
+        # Checkbox lembrar senha
+        self.check_remember = QCheckBox("Lembrar senha")
+
         # Botões
         self.btn_login = QPushButton("Entrar")
         self.btn_cancel = QPushButton("Cancelar")
         self.btn_login.setDefault(True)
+        self.btn_login.setFixedSize(100, 34)
+        self.btn_cancel.setFixedSize(100, 34)
 
         # Layouts
         form_layout = QVBoxLayout()
@@ -37,6 +42,7 @@ class LoginUI(QDialog):
         form_layout.addSpacing(8)
         form_layout.addWidget(self.input_user)
         form_layout.addWidget(self.input_pass)
+        form_layout.addWidget(self.check_remember)
 
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
@@ -75,6 +81,26 @@ class LoginUI(QDialog):
                 font-weight: bold;
             }
             QPushButton:hover { background-color: #f28e3c; }
+            QCheckBox {
+                font-family: Calibri;
+                font-size: 13px;
+                color: #cccccc;
+                spacing: 6px;
+            }
+            QCheckBox::indicator {
+                width: 14px;
+                height: 14px;
+                border-radius: 3px;
+                border: 1px solid #888888;
+                background: rgba(255,255,255,0.06);
+            }
+            QCheckBox::indicator:checked {
+                background-color: #eb8125;
+                border: 1px solid #eb8125;
+            }
+            QCheckBox::indicator:hover {
+                border: 1px solid #f28e3c;
+            }
         """)
 
         self.start_fade_in()
