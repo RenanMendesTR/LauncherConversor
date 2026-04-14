@@ -5,6 +5,9 @@ from launcher_ui import LauncherUI
 from pathlib import Path
 from login_main import LoginWindow
 from PyQt6.QtWidgets import QDialog
+from settings_ui import SettingsDialog
+from settings_ui import SettingsDialog
+from settings_ui import SettingsDialog
 from datetime import datetime
 
 if getattr(sys, 'frozen', False):
@@ -45,6 +48,7 @@ class LauncherApp(LauncherUI):
 
         self.btn_close.clicked.connect(self.close)
         self.btn_min.clicked.connect(self.showMinimized)
+        self.btn_settings.clicked.connect(self._open_settings)
         self.button_update.clicked.connect(self._on_update_clicked)
         self.button_open.clicked.connect(self.open_app)
         self.button_preset.clicked.connect(self.open_preset)
@@ -55,6 +59,10 @@ class LauncherApp(LauncherUI):
         self._pending_remote_size = None
 
         self._load_app_state()
+
+    def _open_settings(self):
+        dlg = SettingsDialog(self)
+        dlg.exec()
 
     def set_open_button_active(self, active: bool):
         if active:

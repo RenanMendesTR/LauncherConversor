@@ -2,8 +2,74 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton, QProgressBar,
     QHBoxLayout, QGraphicsDropShadowEffect, QComboBox
 )
-from PyQt6.QtGui import QColor
-from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve
+from PyQt6.QtGui import QColor, QPainter, QPen, QPainterPath
+from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QRectF, QPointF, pyqtSignal
+import math
+
+
+class GearButton(QWidget):
+    """Botão de engrenagem desenhado com QPainter."""
+
+    clicked = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(32, 24)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setToolTip("Parâmetros")
+        self._hovered = False
+
+    def enterEvent(self, event):
+        self._hovered = True
+        self.update()
+
+    def leaveEvent(self, event):
+        self._hovered = False
+        self.update()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit()
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        if self._hovered:
+            bg = QPainterPath()
+            bg.addRoundedRect(QRectF(0, 0, 32, 24), 6, 6)
+            p.fillPath(bg, QColor("#404040"))
+
+        cx, cy = 16.0, 12.0
+        outer_r = 8.0
+        inner_r = 5.5
+        hole_r = 3.0
+        teeth = 8
+
+        gear = QPainterPath()
+        for i in range(teeth):
+            a1 = math.radians(i * 360 / teeth - 360 / teeth / 4)
+            a2 = math.radians(i * 360 / teeth + 360 / teeth / 4)
+            a3 = math.radians((i + 0.5) * 360 / teeth - 360 / teeth / 4)
+            a4 = math.radians((i + 0.5) * 360 / teeth + 360 / teeth / 4)
+
+            if i == 0:
+                gear.moveTo(cx + outer_r * math.cos(a1), cy + outer_r * math.sin(a1))
+            else:
+                gear.lineTo(cx + outer_r * math.cos(a1), cy + outer_r * math.sin(a1))
+            gear.lineTo(cx + outer_r * math.cos(a2), cy + outer_r * math.sin(a2))
+            gear.lineTo(cx + inner_r * math.cos(a3), cy + inner_r * math.sin(a3))
+            gear.lineTo(cx + inner_r * math.cos(a4), cy + inner_r * math.sin(a4))
+        gear.closeSubpath()
+
+        hole = QPainterPath()
+        hole.addEllipse(QPointF(cx, cy), hole_r, hole_r)
+        gear = gear.subtracted(hole)
+
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QColor(255, 255, 255, 210))
+        p.drawPath(gear)
+        p.end()
 
 
 class LauncherUI(QWidget):
@@ -34,12 +100,8 @@ class LauncherUI(QWidget):
         upper_bar.addWidget(title)
         upper_bar.addStretch()
 
-        # Botões minimizar e fechar
-        self.btn_min = QPushButton("—")
-        self.btn_close = QPushButton("✕")
-
-        self.btn_min.setFixedSize(32, 24)
-        self.btn_min.setStyleSheet("""
+        # Botões da barra superior
+        _title_btn_style = """
             QPushButton {
                 font-family: Calibri;
                 color: white;
@@ -50,7 +112,15 @@ class LauncherUI(QWidget):
             QPushButton:hover {
                 background-color: #404040;
             }
-        """)
+        """
+
+        self.btn_settings = GearButton()
+
+        self.btn_min = QPushButton("—")
+        self.btn_min.setFixedSize(32, 24)
+        self.btn_min.setStyleSheet(_title_btn_style)
+
+        self.btn_close = QPushButton("✕")
         self.btn_close.setFixedSize(32, 24)
         self.btn_close.setStyleSheet("""
             QPushButton {
@@ -64,6 +134,8 @@ class LauncherUI(QWidget):
                 background-color: #e81123;
             }
         """)
+
+        upper_bar.addWidget(self.btn_settings)
         upper_bar.addWidget(self.btn_min)
         upper_bar.addWidget(self.btn_close)
 
