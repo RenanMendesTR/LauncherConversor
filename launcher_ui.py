@@ -96,14 +96,14 @@ class LauncherUI(QWidget):
 
         # Título
         title = QLabel("Inicializador Thomson Reuters ETL")
-        title.setStyleSheet("font-family: Calibri; color: white; font-size: 18px;")
+        title.setStyleSheet("font-family: Clario; color: white; font-size: 18px;")
         upper_bar.addWidget(title)
         upper_bar.addStretch()
 
         # Botões da barra superior
         _title_btn_style = """
             QPushButton {
-                font-family: Calibri;
+                font-family: Clario;
                 color: white;
                 background: transparent;
                 font-size: 16px;
@@ -124,7 +124,7 @@ class LauncherUI(QWidget):
         self.btn_close.setFixedSize(32, 24)
         self.btn_close.setStyleSheet("""
             QPushButton {
-                font-family: Calibri;
+                font-family: Clario;
                 color: white;
                 background: transparent;
                 font-size: 14px;
@@ -142,7 +142,7 @@ class LauncherUI(QWidget):
         # Status e barra de progresso
         self.label_status = QLabel("Pronto")
         self.label_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.label_status.setStyleSheet("font-family: Calibri; color: white; font-size: 16px;")
+        self.label_status.setStyleSheet("font-family: Clario; color: white; font-size: 16px;")
 
         self.progress = QProgressBar()
         self.progress.setRange(0, 100)
@@ -150,9 +150,8 @@ class LauncherUI(QWidget):
 
         _neon_orange = """
             QPushButton {
-                font-family: Calibri;
+                font-family: Clario;
                 font-size: 18px;
-                font-weight: bold;
                 color: #1c0800;
                 background-color: qradialgradient(
                     cx:0.5, cy:0.45, radius:0.85,
@@ -196,7 +195,7 @@ class LauncherUI(QWidget):
         self.button_open_active = _neon_orange
         self.button_open_inactive = """
             QPushButton {
-                font-family: Calibri;
+                font-family: Clario;
                 background-color: #555555;
                 color: #cccccc;
                 font-size: 18px;
@@ -237,7 +236,7 @@ class LauncherUI(QWidget):
         combo_row.setContentsMargins(4, 0, 4, 0)
 
         lbl_app = QLabel("Aplicativo:")
-        lbl_app.setStyleSheet("font-family: Calibri; font-size: 13px; color: #aaaaaa;")
+        lbl_app.setStyleSheet("font-family: Clario; font-size: 13px; color: #aaaaaa;")
         lbl_app.setFixedWidth(78)
 
         self.combo_app = QComboBox()
@@ -271,9 +270,8 @@ class LauncherUI(QWidget):
                 border-radius: 12px;
             }
             QPushButton {
-                font-family: Calibri;
+                font-family: Clario;
                 color: #1c0800;
-                font-weight: bold;
                 font-size: 14px;
                 background-color: qradialgradient(
                     cx:0.5, cy:0.45, radius:0.85,
@@ -313,7 +311,7 @@ class LauncherUI(QWidget):
                 border-radius: 6px;
             }
             QComboBox {
-                font-family: Calibri;
+                font-family: Clario;
                 font-size: 14px;
                 color: white;
                 background-color: rgba(255, 255, 255, 0.07);
@@ -334,7 +332,7 @@ class LauncherUI(QWidget):
                 border-bottom-right-radius: 6px;
             }
             QComboBox QAbstractItemView {
-                font-family: Calibri;
+                font-family: Clario;
                 font-size: 14px;
                 background-color: #1e0d02;
                 color: white;
@@ -366,18 +364,17 @@ class LauncherUI(QWidget):
             QMessageBox {
                 background-color: #2b2b2b;
                 color: white;
-                font-family: Calibri;
+                font-family: Clario;
                 font-size: 14px;
             }
             QMessageBox QLabel {
                 color: white;
-                font-family: Calibri;
+                font-family: Clario;
                 font-size: 14px;
             }
             QMessageBox QPushButton {
                 background-color: #eb8125;
                 color: white;
-                font-weight: bold;
                 border-radius: 6px;
                 padding: 6px 10px;
             }
@@ -388,8 +385,8 @@ class LauncherUI(QWidget):
 
     def _set_version_display(self, label, prefix: str, value: str, color: str):
         label.setText(
-            f'<span style="font-family:Calibri;font-size:12px;color:#888888;">{prefix}</span>'
-            f'&nbsp;&nbsp;<span style="font-family:Calibri;font-size:12px;font-weight:bold;color:{color};">{value}</span>'
+            f'<span style="font-family:Clario;font-size:12px;color:#888888;">{prefix}</span>'
+            f'&nbsp;&nbsp;<span style="font-family:Clario;font-size:12px;font-weight:bold;color:{color};">{value}</span>'
         )
 
     def mousePressEvent(self, event):

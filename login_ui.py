@@ -19,7 +19,7 @@ class LoginUI(QDialog):
 
         # Campos
         self.label_title = QLabel("Entrar no SGD")
-        self.label_title.setStyleSheet("font-family: Calibri; color: white; font-size: 18px;")
+        self.label_title.setStyleSheet("font-family: Clario; color: white; font-size: 18px;")
         self.input_user = QLineEdit()
         self.input_user.setPlaceholderText("Usuário")
         self.input_pass = QLineEdit()
@@ -62,9 +62,9 @@ class LoginUI(QDialog):
                 );
                 border-radius: 12px;
             }
-            QLabel { color: white; font-family: Calibri; }
+            QLabel { color: white; font-family: Clario; }
             QLineEdit {
-                font-family: Calibri;
+                font-family: Clario;
                 font-size: 14px;
                 padding: 8px;
                 border-radius: 6px;
@@ -72,9 +72,8 @@ class LoginUI(QDialog):
                 color: white;
             }
             QPushButton {
-                font-family: Calibri;
+                font-family: Clario;
                 font-size: 14px;
-                font-weight: bold;
                 color: #1c0800;
                 background-color: qradialgradient(
                     cx:0.5, cy:0.45, radius:0.85,
@@ -101,7 +100,7 @@ class LoginUI(QDialog):
                 border-top: 1px solid rgba(255, 228, 175, 0.9);
             }
             QCheckBox {
-                font-family: Calibri;
+                font-family: Clario;
                 font-size: 13px;
                 color: #cccccc;
                 spacing: 6px;

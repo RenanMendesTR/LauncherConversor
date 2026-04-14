@@ -78,7 +78,7 @@ def _make_option_row(text, checked=False):
 
     label = QLabel(text)
     label.setStyleSheet(
-        "font-family: Calibri; font-size: 14px; color: #dddddd; background: transparent;"
+        "font-family: Clario; font-size: 14px; color: #dddddd; background: transparent;"
     )
     label.setWordWrap(True)
 
@@ -112,7 +112,7 @@ class SettingsDialog(QDialog):
 
         title = QLabel("⚙  Parâmetros")
         title.setStyleSheet(
-            "font-family: Calibri; color: white; font-size: 17px; font-weight: bold; background: transparent;"
+            "font-family: Clario; color: white; font-size: 17px; font-weight: bold; background: transparent;"
         )
         header.addWidget(title)
         header.addStretch()
