@@ -186,9 +186,12 @@ class LauncherApp(LauncherUI):
         return target
 
     def _format_mdtm(self, mdtm):
-        """Converte string MDTM (YYYYMMDDHHmmss) para formato legível."""
+        """Converte string MDTM (YYYYMMDDHHmmss) UTC para horário local."""
         try:
-            return datetime.strptime(mdtm, "%Y%m%d%H%M%S").strftime("%d/%m/%Y %H:%M")
+            from datetime import timezone
+            dt_utc = datetime.strptime(mdtm, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc)
+            dt_local = dt_utc.astimezone()
+            return dt_local.strftime("%d/%m/%Y %H:%M")
         except ValueError:
             return mdtm
 
