@@ -1,4 +1,4 @@
-import sys, os, ftplib, zipfile, subprocess, shutil
+import sys, os, ftplib, zipfile, subprocess, shutil, winreg
 import requests
 from PyQt6.QtWidgets import QApplication, QMessageBox, QMenu, QToolTip
 from PyQt6.QtGui import QIcon, QCursor
@@ -39,23 +39,42 @@ def _load_ftp_credentials():
 
 FTP_HOST, FTP_USER, FTP_PASSWORD = _load_ftp_credentials()
 
+# Caminho no Registro do Windows para armazenar os registros de atualização
+_REG_PATH = r'SOFTWARE\DominioSistemas\LauncherConversor\Updates'
+
+
+def _reg_read(value_name: str):
+    """Lê um valor do Registro do Windows. Retorna None se não existir."""
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, _REG_PATH) as key:
+            return winreg.QueryValueEx(key, value_name)[0]
+    except OSError:
+        return None
+
+
+def _reg_write(value_name: str, value: str):
+    """Grava um valor string no Registro do Windows, criando a chave se necessário."""
+    with winreg.CreateKeyEx(winreg.HKEY_CURRENT_USER, _REG_PATH) as key:
+        winreg.SetValueEx(key, value_name, 0, winreg.REG_SZ, value)
+
+
 # Configurações por aplicativo (índice = posição no ComboBox)
 APP_CONFIGS = {
     0: {
-        "ftp_path":      "/unidades/Pub/Conversores/test_launcher/[Conversor Thomson Reuters]",
-        "zip_name":      "Conversor-Thomson-Reuters.zip",
-        "local_folder":  BASE_DIR / "Conversor Thomson Reuters",
-        "update_record": BASE_DIR / "last_update_thomson.txt",
-        "start_exe":     "start.exe",
-        "preset_exe":    "preset_medias.exe",
+        "ftp_path":     "/unidades/Pub/Conversores/test_launcher/[Conversor Thomson Reuters]",
+        "zip_name":     "Conversor-Thomson-Reuters.zip",
+        "local_folder": BASE_DIR / "Conversor Thomson Reuters",
+        "reg_key":      "ThomsonReuters",
+        "start_exe":    "start.exe",
+        "preset_exe":   "preset_medias.exe",
     },
     1: {
-        "ftp_path":      "/unidades/Pub/Conversores/test_launcher/[Conversor eSocial]",
-        "zip_name":      "conversorEsocial.zip",
-        "local_folder":  BASE_DIR / "Conversor eSocial XML",
-        "update_record": BASE_DIR / "last_update_esocial.txt",
-        "start_exe":     "main.exe",
-        "preset_exe":    None,
+        "ftp_path":     "/unidades/Pub/Conversores/test_launcher/[Conversor eSocial]",
+        "zip_name":     "conversorEsocial.zip",
+        "local_folder": BASE_DIR / "Conversor eSocial XML",
+        "reg_key":      "eSocial",
+        "start_exe":    "main.exe",
+        "preset_exe":   None,
     },
 }
 
@@ -128,10 +147,26 @@ class LauncherApp(LauncherUI):
         self._load_app_state()
 
     def read_local_record(self):
-        """Retorna (mdtm, size) do registro local ou None se não existir."""
-        record_file = self._cfg["update_record"]
-        if record_file.exists():
-            parts = record_file.read_text(encoding="utf-8").strip().split("|")
+        """Retorna (mdtm, size) do Registro do Windows, ou None se não existir.
+        Na primeira execução migra automaticamente qualquer .txt legado."""
+        reg_key = self._cfg["reg_key"]
+        raw = _reg_read(reg_key)
+
+        # Migração: se ainda não existe no Registro, tenta importar do .txt legado
+        if raw is None:
+            legacy_names = {"ThomsonReuters": "last_update_thomson.txt",
+                            "eSocial":        "last_update_esocial.txt"}
+            legacy_file = BASE_DIR / legacy_names.get(reg_key, "")
+            if legacy_file.exists():
+                raw = legacy_file.read_text(encoding="utf-8").strip()
+                _reg_write(reg_key, raw)
+                try:
+                    legacy_file.unlink()
+                except OSError:
+                    pass
+
+        if raw:
+            parts = raw.split("|")
             if len(parts) == 2:
                 try:
                     return parts[0], int(parts[1])
@@ -140,7 +175,7 @@ class LauncherApp(LauncherUI):
         return None
 
     def save_local_record(self, mdtm, size):
-        self._cfg["update_record"].write_text(f"{mdtm}|{size}", encoding="utf-8")
+        _reg_write(self._cfg["reg_key"], f"{mdtm}|{size}")
 
     def get_remote_zip(self, ftp):
         """Retorna o nome do arquivo zip do aplicativo no servidor FTP."""
@@ -402,9 +437,8 @@ class LauncherApp(LauncherUI):
 
     def _check_integrity(self):
         cfg = self._cfg
-        folder      = cfg["local_folder"]
-        exe_path    = folder / cfg["start_exe"]
-        record_file = cfg["update_record"]
+        folder   = cfg["local_folder"]
+        exe_path = folder / cfg["start_exe"]
 
         folder_ok  = folder.exists()
         exe_ok     = exe_path.exists()
@@ -469,9 +503,13 @@ class LauncherApp(LauncherUI):
 
         try:
             shutil.rmtree(folder)
-            record_file = cfg["update_record"]
-            if record_file.exists():
-                record_file.unlink()
+            # Remove o registro de instalação do Registro do Windows
+            try:
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, _REG_PATH,
+                                    access=winreg.KEY_SET_VALUE) as key:
+                    winreg.DeleteValue(key, cfg["reg_key"])
+            except OSError:
+                pass
 
             self._load_app_state()
             self.progress.setValue(0)
