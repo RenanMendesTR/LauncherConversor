@@ -3,7 +3,10 @@ from PyQt6.QtWidgets import (
     QGraphicsDropShadowEffect
 )
 from PyQt6.QtGui import QColor, QPainter, QPainterPath
-from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QRectF, pyqtProperty, pyqtSignal
+from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QRectF, pyqtProperty, pyqtSignal, QSettings
+
+SETTINGS_ORG  = "DominioSistemas"
+SETTINGS_APP  = "LauncherConversor"
 
 
 class ToggleSwitch(QWidget):
@@ -152,6 +155,9 @@ class SettingsDialog(QDialog):
         main_layout.addSpacing(4)
         main_layout.addLayout(row3)
 
+        # -- Carrega valores persistidos --
+        self._load_settings()
+
         main_layout.addStretch()
 
         # -- Estilo geral --
@@ -184,6 +190,28 @@ class SettingsDialog(QDialog):
         sep.setFixedHeight(1)
         sep.setStyleSheet("background-color: rgba(255,255,255,0.06);")
         layout.addWidget(sep)
+
+    def _load_settings(self):
+        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        self.toggle_detect_unit.setChecked(
+            s.value("settings/detect_unit", False, type=bool)
+        )
+        self.toggle_ignore_db_warning.setChecked(
+            s.value("settings/ignore_db_warning", False, type=bool)
+        )
+        self.toggle_client_code_conn.setChecked(
+            s.value("settings/client_code_conn", False, type=bool)
+        )
+
+    def _save_settings(self):
+        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        s.setValue("settings/detect_unit",       self.toggle_detect_unit.isChecked())
+        s.setValue("settings/ignore_db_warning", self.toggle_ignore_db_warning.isChecked())
+        s.setValue("settings/client_code_conn",  self.toggle_client_code_conn.isChecked())
+
+    def closeEvent(self, event):
+        self._save_settings()
+        super().closeEvent(event)
 
     # -- Arrastar janela --
     def mousePressEvent(self, event):

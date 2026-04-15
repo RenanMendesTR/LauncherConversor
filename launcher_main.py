@@ -1,12 +1,11 @@
-import sys, os, ftplib, zipfile, subprocess
-from PyQt6.QtWidgets import QApplication, QMessageBox
-from PyQt6.QtGui import QIcon
+import sys, os, ftplib, zipfile, subprocess, shutil
+from PyQt6.QtWidgets import QApplication, QMessageBox, QMenu, QToolTip
+from PyQt6.QtGui import QIcon, QCursor
+from PyQt6.QtCore import Qt
 from launcher_ui import LauncherUI
 from pathlib import Path
 from login_main import LoginWindow
 from PyQt6.QtWidgets import QDialog
-from settings_ui import SettingsDialog
-from settings_ui import SettingsDialog
 from settings_ui import SettingsDialog
 from datetime import datetime
 
@@ -49,7 +48,8 @@ class LauncherApp(LauncherUI):
         self.btn_close.clicked.connect(self.close)
         self.btn_min.clicked.connect(self.showMinimized)
         self.btn_settings.clicked.connect(self._open_settings)
-        self.button_update.clicked.connect(self._on_update_clicked)
+        self.button_update.btn_main.clicked.connect(self._on_update_clicked)
+        self.button_update.btn_arrow.clicked.connect(self._show_update_menu)
         self.button_open.clicked.connect(self.open_app)
         self.button_preset.clicked.connect(self.open_preset)
         self.combo_app.currentIndexChanged.connect(self._on_app_changed)
@@ -311,6 +311,141 @@ class LauncherApp(LauncherUI):
             self.close()
         except Exception as e:
             QMessageBox.warning(self, "Erro", f"Não foi possível iniciar o preset:\n{e}")
+
+    # ------------------------------------------------------------------
+    # Dropdown do split button
+    # ------------------------------------------------------------------
+
+    def _show_update_menu(self):
+        menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu {
+                font-family: Clario;
+                font-size: 14px;
+                background-color: #1e0d02;
+                color: white;
+                border: 1px solid rgba(235, 129, 37, 0.5);
+                border-radius: 6px;
+                padding: 4px;
+            }
+            QMenu::item {
+                padding: 6px 20px 6px 12px;
+                border-radius: 4px;
+            }
+            QMenu::item:selected {
+                background-color: #eb8125;
+                color: #1c0800;
+            }
+        """)
+
+        action_integrity = menu.addAction("Verificar Integridade")
+        menu.addSeparator()
+        action_uninstall = menu.addAction("Desinstalar")
+
+        _tooltip_uninstall = (
+            "⚠  Esta ação excluirá permanentemente todos os arquivos\n"
+            "do aplicativo do disco. A operação não pode ser desfeita."
+        )
+        if action_uninstall is not None:
+            action_uninstall.setToolTip(_tooltip_uninstall)
+            action_uninstall.hovered.connect(
+                lambda: QToolTip.showText(QCursor.pos(), _tooltip_uninstall)
+            )
+
+        btn_rect = self.button_update.btn_arrow.rect()
+        global_pos = self.button_update.btn_arrow.mapToGlobal(btn_rect.bottomLeft())
+        chosen = menu.exec(global_pos)
+
+        if chosen == action_integrity:
+            self._check_integrity()
+        elif chosen == action_uninstall:
+            self._uninstall_app()
+
+    # ------------------------------------------------------------------
+    # Verificação de integridade (local)
+    # ------------------------------------------------------------------
+
+    def _check_integrity(self):
+        cfg = self._cfg
+        folder      = cfg["local_folder"]
+        exe_path    = folder / cfg["start_exe"]
+        record_file = cfg["update_record"]
+
+        folder_ok  = folder.exists()
+        exe_ok     = exe_path.exists()
+        record     = self.read_local_record()
+        record_ok  = record is not None
+
+        if folder_ok:
+            total_files = sum(1 for _ in folder.rglob("*") if _.is_file())
+        else:
+            total_files = 0
+
+        def mark(ok):
+            return "✓" if ok else "✗"
+
+        lines = [
+            f"<b>Resultado da Verificação</b><br><br>",
+            f"{mark(folder_ok)}  Pasta do aplicativo: "
+            + (f"<span style='color:#6abf69;'>Encontrada</span>" if folder_ok
+               else "<span style='color:#e05555;'>Não encontrada</span>"),
+            f"<br>{mark(exe_ok)}  Executável principal (<i>{cfg['start_exe']}</i>): "
+            + (f"<span style='color:#6abf69;'>Encontrado</span>" if exe_ok
+               else "<span style='color:#e05555;'>Não encontrado</span>"),
+            f"<br>{mark(record_ok)}  Registro de instalação: "
+            + (f"<span style='color:#6abf69;'>Válido — {self._format_mdtm(record[0])}</span>" if record_ok
+               else "<span style='color:#e05555;'>Ausente</span>"),
+            f"<br>{'📁'}  Arquivos na pasta: <b>{total_files}</b>",
+        ]
+
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Verificação de Integridade")
+        msg.setIcon(QMessageBox.Icon.Information)
+        msg.setText("".join(lines))
+        msg.setTextFormat(Qt.TextFormat.RichText)
+        msg.exec()
+
+    # ------------------------------------------------------------------
+    # Desinstalação
+    # ------------------------------------------------------------------
+
+    def _uninstall_app(self):
+        cfg    = self._cfg
+        folder = cfg["local_folder"]
+        app_name = self.combo_app.currentText()
+
+        if not folder.exists():
+            QMessageBox.information(self, "Desinstalar",
+                                    "O aplicativo não está instalado.")
+            return
+
+        confirm = QMessageBox.question(
+            self,
+            "Confirmar Desinstalação",
+            f"Deseja desinstalar <b>{app_name}</b>?<br><br>"
+            f"Todos os arquivos em:<br><i>{folder}</i><br><br>"
+            f"serão excluídos permanentemente.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+
+        if confirm != QMessageBox.StandardButton.Yes:
+            return
+
+        try:
+            shutil.rmtree(folder)
+            record_file = cfg["update_record"]
+            if record_file.exists():
+                record_file.unlink()
+
+            self._load_app_state()
+            self.progress.setValue(0)
+            self.label_status.setText("Aplicativo desinstalado com sucesso.")
+            QMessageBox.information(self, "Desinstalado",
+                                    f"{app_name} foi removido com sucesso.")
+        except Exception as e:
+            QMessageBox.warning(self, "Erro ao Desinstalar",
+                                f"Não foi possível remover os arquivos:\n{e}")
 
 
 def resource_path(relative_path):

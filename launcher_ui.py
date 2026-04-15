@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton, QProgressBar,
-    QHBoxLayout, QGraphicsDropShadowEffect, QComboBox
+    QHBoxLayout, QGraphicsDropShadowEffect, QComboBox, QSizePolicy
 )
 from PyQt6.QtGui import QColor, QPainter, QPen, QPainterPath
 from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QRectF, QPointF, pyqtSignal
@@ -70,6 +70,68 @@ class GearButton(QWidget):
         p.setBrush(QColor(255, 255, 255, 210))
         p.drawPath(gear)
         p.end()
+
+
+class SplitUpdateButton(QWidget):
+    """Botão split: parte principal (Verificar Atualizações) + seta dropdown."""
+
+    def __init__(self, neon_style: str, parent=None):
+        super().__init__(parent)
+        self.setFixedHeight(44)
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        _main_style = neon_style + """
+            QPushButton {
+                border-top-right-radius: 0px;
+                border-bottom-right-radius: 0px;
+                border-right: none;
+            }
+            QPushButton:disabled {
+                background-color: #555555;
+                color: #aaaaaa;
+                border: none;
+            }
+        """
+
+        _arrow_style = neon_style + """
+            QPushButton {
+                border-top-left-radius: 0px;
+                border-bottom-left-radius: 0px;
+                border-left: 1px solid rgba(130, 58, 8, 0.55);
+                min-width: 32px;
+                max-width: 32px;
+                font-size: 14px;
+                padding: 0px;
+            }
+            QPushButton:disabled {
+                background-color: #555555;
+                color: #aaaaaa;
+                border: none;
+            }
+        """
+
+        self.btn_main = QPushButton("Verificar Atualizações")
+        self.btn_main.setFixedHeight(44)
+        self.btn_main.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.btn_main.setStyleSheet(_main_style)
+
+        self.btn_arrow = QPushButton("▾")
+        self.btn_arrow.setFixedSize(32, 44)
+        self.btn_arrow.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
+        self.btn_arrow.setStyleSheet(_arrow_style)
+        self.btn_arrow.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_arrow.setToolTip("Mais opções")
+
+        layout.addWidget(self.btn_main)
+        layout.addWidget(self.btn_arrow)
+
+    # --- Método proxy para compatibilidade com launcher_main.py ---
+
+    def setText(self, text: str):
+        self.btn_main.setText(text)
 
 
 class LauncherUI(QWidget):
@@ -180,15 +242,7 @@ class LauncherUI(QWidget):
         """
 
         # Botões principais
-        self.button_update = QPushButton("Verificar Atualizações")
-        self.button_update.setFixedHeight(44)
-        self.button_update.setStyleSheet(_neon_orange + """
-            QPushButton:disabled {
-                background-color: #555555;
-                color: #aaaaaa;
-                border: none;
-            }
-        """)
+        self.button_update = SplitUpdateButton(_neon_orange)
 
         self.button_open = QPushButton("Abrir Aplicativo")
         self.button_open.setFixedHeight(44)
