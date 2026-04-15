@@ -1,12 +1,13 @@
 import sys, os, ftplib, zipfile, subprocess, shutil
+import requests
 from PyQt6.QtWidgets import QApplication, QMessageBox, QMenu, QToolTip
 from PyQt6.QtGui import QIcon, QCursor
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QSettings
 from launcher_ui import LauncherUI
 from pathlib import Path
 from login_main import LoginWindow
 from PyQt6.QtWidgets import QDialog
-from settings_ui import SettingsDialog
+from settings_ui import SettingsDialog, SETTINGS_ORG, SETTINGS_APP
 from datetime import datetime
 
 if getattr(sys, 'frozen', False):
@@ -14,15 +15,34 @@ if getattr(sys, 'frozen', False):
 else:
     BASE_DIR = Path(__file__).resolve().parent
 
-# Credenciais FTP
-FTP_HOST     = 'ftp.dominiosistemas.com.br'
-FTP_USER     = 'supuns'
-FTP_PASSWORD = 'VyML6iNOFsyttonm35VR40WuAcyr'
+# Credenciais FTP — valores de fallback caso o Gist não esteja acessível
+_FTP_HOST_DEFAULT     = 'ftp.dominiosistemas.com.br'
+_FTP_USER_DEFAULT     = 'supuns'
+_FTP_PASSWORD_DEFAULT = 'VyML6iNOFsyttonm35VR40WuAcyr'
+
+_FTP_CREDENTIALS_URL = (
+    'https://gist.githubusercontent.com/RenanMendesTR/'
+    '540cfe34c461ea73ba6c0f112fd7c910/raw/ftp_config.json'
+)
+
+
+def _load_ftp_credentials():
+    """Busca credenciais FTP do Gist remoto; retorna fallback em caso de falha."""
+    try:
+        response = requests.get(_FTP_CREDENTIALS_URL, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+        return data['host'], data['user'], data['password']
+    except Exception:
+        return _FTP_HOST_DEFAULT, _FTP_USER_DEFAULT, _FTP_PASSWORD_DEFAULT
+
+
+FTP_HOST, FTP_USER, FTP_PASSWORD = _load_ftp_credentials()
 
 # Configurações por aplicativo (índice = posição no ComboBox)
 APP_CONFIGS = {
     0: {
-        "ftp_path":      "/unidades/Pub/Conversores/[Conversor Thomson Reuters]",
+        "ftp_path":      "/unidades/Pub/Conversores/test_launcher/[Conversor Thomson Reuters]",
         "zip_name":      "Conversor-Thomson-Reuters.zip",
         "local_folder":  BASE_DIR / "Conversor Thomson Reuters",
         "update_record": BASE_DIR / "last_update_thomson.txt",
@@ -30,7 +50,7 @@ APP_CONFIGS = {
         "preset_exe":    "preset_medias.exe",
     },
     1: {
-        "ftp_path":      "/unidades/Pub/Conversores/[Conversor eSocial]",
+        "ftp_path":      "/unidades/Pub/Conversores/test_launcher/[Conversor eSocial]",
         "zip_name":      "conversorEsocial.zip",
         "local_folder":  BASE_DIR / "Conversor eSocial XML",
         "update_record": BASE_DIR / "last_update_esocial.txt",
@@ -168,7 +188,8 @@ class LauncherApp(LauncherUI):
             self.button_update.setEnabled(False)
             QApplication.processEvents()
 
-            with ftplib.FTP(FTP_HOST, FTP_USER, FTP_PASSWORD, timeout=20) as ftp:
+            host, user, password = _load_ftp_credentials()
+            with ftplib.FTP(host, user, password, timeout=20) as ftp:
                 ftp.cwd(self._cfg["ftp_path"])
                 self.label_status.setText("Verificando arquivos no servidor...")
                 QApplication.processEvents()
@@ -212,7 +233,8 @@ class LauncherApp(LauncherUI):
             self.label_status.setText("Conectando ao servidor FTP...")
             QApplication.processEvents()
 
-            with ftplib.FTP(FTP_HOST, FTP_USER, FTP_PASSWORD, timeout=20) as ftp:
+            host, user, password = _load_ftp_credentials()
+            with ftplib.FTP(host, user, password, timeout=20) as ftp:
                 ftp.cwd(self._cfg["ftp_path"])
                 ftp.voidcmd("TYPE I")
                 self.download_and_update(
@@ -286,6 +308,19 @@ class LauncherApp(LauncherUI):
             self.set_update_button_default()
             QMessageBox.warning(self, "Erro", f"Falha ao atualizar:\n{e}")
 
+    def _build_launch_env(self) -> dict:
+        """Monta o ambiente de execução herdado com as flags do Launcher."""
+        env = os.environ.copy()
+        env["CONV_AUTH"] = "THOMSON_KEY_2025"
+
+        s = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        if s.value("settings/ignore_db_warning", False, type=bool):
+            env["CONV_IGNORE_DB_WARNING"] = "1"
+        else:
+            env.pop("CONV_IGNORE_DB_WARNING", None)
+
+        return env
+
     def open_app(self):
         folder   = self._cfg["local_folder"]
         app_path = folder / self._cfg["start_exe"]
@@ -293,7 +328,7 @@ class LauncherApp(LauncherUI):
             QMessageBox.warning(self, "Erro", f"Arquivo não encontrado: {app_path}")
             return
         try:
-            subprocess.Popen([str(app_path), "--auth", "THOMSON_KEY_2025"], cwd=folder)
+            subprocess.Popen([str(app_path)], cwd=folder, env=self._build_launch_env())
             self.close()
         except Exception as e:
             QMessageBox.warning(self, "Erro", f"Não foi possível iniciar o aplicativo:\n{e}")
@@ -307,7 +342,7 @@ class LauncherApp(LauncherUI):
             QMessageBox.warning(self, "Erro", f"Arquivo não encontrado: {app_path}")
             return
         try:
-            subprocess.Popen([str(app_path), "--auth", "THOMSON_KEY_2025"], cwd=folder)
+            subprocess.Popen([str(app_path)], cwd=folder, env=self._build_launch_env())
             self.close()
         except Exception as e:
             QMessageBox.warning(self, "Erro", f"Não foi possível iniciar o preset:\n{e}")
