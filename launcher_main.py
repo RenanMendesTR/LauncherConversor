@@ -354,6 +354,16 @@ class LauncherApp(LauncherUI):
         else:
             env.pop("CONV_IGNORE_DB_WARNING", None)
 
+        if s.value("settings/detect_unit", False, type=bool):
+            env["CONV_DETECT_UNIT"] = "1"
+        else:
+            env.pop("CONV_DETECT_UNIT", None)
+
+        if s.value("settings/client_code_conn", False, type=bool):
+            env["CONV_CLIENT_CODE_CONN"] = "1"
+        else:
+            env.pop("CONV_CLIENT_CODE_CONN", None)
+
         return env
 
     def open_app(self):
