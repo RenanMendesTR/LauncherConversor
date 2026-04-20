@@ -1,7 +1,7 @@
 import sys, os, ftplib, zipfile, subprocess, shutil, winreg
 import requests
 from PyQt6.QtWidgets import QApplication, QMessageBox, QMenu, QToolTip
-from PyQt6.QtGui import QIcon, QCursor
+from PyQt6.QtGui import QIcon, QCursor, QFontDatabase
 from PyQt6.QtCore import Qt, QSettings
 from launcher_ui import LauncherUI
 from pathlib import Path
@@ -541,6 +541,20 @@ def resource_path(relative_path):
     return os.path.join(os.path.abspath("."), relative_path)
 
 
+def load_bundled_fonts():
+    """Registra as fontes Clario empacotadas com o aplicativo."""
+    font_files = [
+        "fonts/Clario-Regular.ttf",
+        "fonts/Clario-Bold.ttf",
+        "fonts/Clario-Medium.ttf",
+        "fonts/Clario-Light.ttf",
+    ]
+    for font_file in font_files:
+        path = resource_path(font_file)
+        if os.path.exists(path):
+            QFontDatabase.addApplicationFont(path)
+
+
 if __name__ == "__main__":
     # Evita o erro UpdateLayeredWindowIndirect em monitores com DPI scaling
     from PyQt6.QtCore import Qt as _Qt
@@ -548,6 +562,7 @@ if __name__ == "__main__":
         _Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
     app = QApplication(sys.argv)
+    load_bundled_fonts()
 
     app.setWindowIcon(QIcon(resource_path("icone_multi.ico")))
 
