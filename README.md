@@ -52,7 +52,7 @@ As credenciais podem ser salvas localmente com a opção **"Lembrar-me"**. Quand
 Para evitar que uma mudança de senha no servidor FTP exija redistribuição do Launcher, as credenciais são carregadas dinamicamente de um **GitHub Gist** a cada conexão:
 
 ```
-https://gist.githubusercontent.com/RenanMendesTR/540cfe34c461ea73ba6c0f112fd7c910/raw/ftp_config.json
+https://gist.githubusercontent.com/RenanMendesTR/e513c4973cecbb4ba67f14e543095b31/raw/ftp_config.json
 ```
 
 Como o Gist é acessível por qualquer pessoa que possua o link, a **senha do FTP é armazenada criptografada** no JSON. Assim, mesmo que o link vaze, o conteúdo do Gist é inútil sem o Launcher compilado.
