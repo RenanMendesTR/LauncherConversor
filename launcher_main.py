@@ -1,4 +1,4 @@
-import sys, os, ftplib, zipfile, subprocess, shutil, winreg
+import sys, os, ftplib, zipfile, subprocess, shutil, winreg, hmac, hashlib, base64, time
 import requests
 from PyQt6.QtWidgets import QApplication, QMessageBox, QMenu, QToolTip
 from PyQt6.QtGui import QIcon, QCursor, QFontDatabase
@@ -21,18 +21,91 @@ _FTP_USER_DEFAULT     = 'supuns'
 _FTP_PASSWORD_DEFAULT = 'VyML6iNOFsyttonm35VR40WuAcyr'
 
 _FTP_CREDENTIALS_URL = (
-    'https://gist.githubusercontent.com/RenanMendesTR/'
-    '540cfe34c461ea73ba6c0f112fd7c910/raw/ftp_config.json'
+    'https://gist.githubusercontent.com/RenanMendesTR/e513c4973cecbb4ba67f14e543095b31/raw/ftp_config.json'
 )
+
+# ---------------------------------------------------------------------------
+# Criptografia da senha armazenada no Gist
+# ---------------------------------------------------------------------------
+# O Gist é público; o campo "password_enc" guarda um blob criptografado.
+# Esquema (V1): PBKDF2-HMAC-SHA256 deriva 64 bytes de (SECRET + salt).
+#   - 32 primeiros bytes  → semente do keystream SHA-256 em counter mode (XOR)
+#   - 32 últimos bytes    → chave HMAC-SHA256 para integridade
+# Layout do blob (antes do base64):  b"V1" | salt(16) | hmac(32) | ciphertext
+# Para gerar um novo token após trocar a senha do FTP, use gerar_senha_cripto.py.
+_CRYPTO_SECRET = base64.b64decode('bbEM5i46Vxi9fqP/fhIXwsFohdce1/3jVCcIFDnuU9E=')
+_CRYPTO_MAGIC = b'V1'
+_CRYPTO_ITER = 200_000
+
+
+def _crypto_derive_keys(salt: bytes):
+    km = hashlib.pbkdf2_hmac('sha256', _CRYPTO_SECRET, salt, _CRYPTO_ITER, dklen=64)
+    return km[:32], km[32:]
+
+
+def _crypto_keystream(seed: bytes, n: int) -> bytes:
+    out = bytearray()
+    counter = 0
+    while len(out) < n:
+        out.extend(hashlib.sha256(seed + counter.to_bytes(8, 'big')).digest())
+        counter += 1
+    return bytes(out[:n])
+
+
+def _decrypt_password(token: str) -> str:
+    """Decifra um token V1 gerado por gerar_senha_cripto.py. Levanta ValueError em falha."""
+    try:
+        blob = base64.b64decode(token, validate=True)
+    except Exception as exc:
+        raise ValueError(f"token base64 inválido: {exc}")
+    if len(blob) < 50 or blob[:2] != _CRYPTO_MAGIC:
+        raise ValueError("formato de token não reconhecido")
+    salt, mac, ct = blob[2:18], blob[18:50], blob[50:]
+    k_enc, k_mac = _crypto_derive_keys(salt)
+    if not hmac.compare_digest(mac, hmac.new(k_mac, salt + ct, hashlib.sha256).digest()):
+        raise ValueError("HMAC inválido — chave incorreta ou blob adulterado")
+    plain = bytes(a ^ b for a, b in zip(ct, _crypto_keystream(k_enc, len(ct))))
+    return plain.decode('utf-8')
+
+
+def _encrypt_password(plaintext: str) -> str:
+    """Gera um token V1 a partir da senha em texto puro. Usado pelo utilitário."""
+    salt = os.urandom(16)
+    k_enc, k_mac = _crypto_derive_keys(salt)
+    data = plaintext.encode('utf-8')
+    ct = bytes(a ^ b for a, b in zip(data, _crypto_keystream(k_enc, len(data))))
+    mac = hmac.new(k_mac, salt + ct, hashlib.sha256).digest()
+    return base64.b64encode(_CRYPTO_MAGIC + salt + mac + ct).decode('ascii')
 
 
 def _load_ftp_credentials():
-    """Busca credenciais FTP do Gist remoto; retorna fallback em caso de falha."""
+    """Busca credenciais FTP do Gist remoto; retorna fallback em caso de falha.
+
+    Aceita a senha sob dois campos no JSON:
+      - "password_enc": blob criptografado (V1) — preferencial
+      - "password":     texto puro — legado, ainda aceito para compatibilidade
+    """
     try:
-        response = requests.get(_FTP_CREDENTIALS_URL, timeout=5)
+        # Cache-buster: o CDN do GitHub (Fastly) cacheia o URL raw do Gist por
+        # ~5 min. Um parâmetro variável força o CDN a buscar a versão atual,
+        # garantindo que mudanças no Gist reflitam imediatamente no Launcher.
+        response = requests.get(
+            _FTP_CREDENTIALS_URL,
+            params={"_": int(time.time())},
+            headers={"Cache-Control": "no-cache"},
+            timeout=5,
+        )
         response.raise_for_status()
         data = response.json()
-        return data['host'], data['user'], data['password']
+        host = data['host']
+        user = data['user']
+        if 'password_enc' in data:
+            password = _decrypt_password(data['password_enc'])
+        elif 'password' in data:
+            password = data['password']
+        else:
+            raise KeyError("nenhum campo de senha encontrado no JSON")
+        return host, user, password
     except Exception:
         return _FTP_HOST_DEFAULT, _FTP_USER_DEFAULT, _FTP_PASSWORD_DEFAULT
 

@@ -47,26 +47,59 @@ As credenciais podem ser salvas localmente com a opção **"Lembrar-me"**. Quand
 
 ---
 
-## Credenciais FTP via GitHub Gist
+## Credenciais FTP via GitHub Gist (com criptografia)
 
-Para evitar que uma mudança de senha no servidor FTP exija redistribuição do Launcher, as credenciais são carregadas dinamicamente de um **GitHub Gist privado** a cada conexão:
+Para evitar que uma mudança de senha no servidor FTP exija redistribuição do Launcher, as credenciais são carregadas dinamicamente de um **GitHub Gist** a cada conexão:
 
 ```
 https://gist.githubusercontent.com/RenanMendesTR/540cfe34c461ea73ba6c0f112fd7c910/raw/ftp_config.json
 ```
 
-**Formato esperado do Gist:**
+Como o Gist é acessível por qualquer pessoa que possua o link, a **senha do FTP é armazenada criptografada** no JSON. Assim, mesmo que o link vaze, o conteúdo do Gist é inútil sem o Launcher compilado.
+
+### Esquema criptográfico (formato V1)
+
+Implementação 100% em stdlib do Python (sem dependências externas):
+
+- **Key derivation:** PBKDF2-HMAC-SHA256 (200 000 iterações) derivando 64 bytes de `SECRET + salt`.
+- **Cifra:** stream cipher via SHA-256 em counter mode (XOR) usando os 32 primeiros bytes da chave derivada.
+- **Integridade:** HMAC-SHA256 sobre `salt + ciphertext` usando os 32 bytes finais da chave derivada. Qualquer modificação acidental ou maliciosa faz a decifragem falhar explicitamente.
+- **Layout do blob (antes do base64):** `b"V1" | salt(16B) | hmac(32B) | ciphertext(NB)`.
+- **Salt aleatório por token:** cada geração produz um token diferente, mesmo para a mesma senha — dificultando análise estatística.
+
+A `SECRET` de 32 bytes fica embutida em `launcher_main.py` e, consequentemente, no executável compilado pelo PyInstaller.
+
+### Formato atual do JSON no Gist
+
 ```json
 {
-  "host": "ftp.dominiosistemas.com.br",
-  "user": "usuario",
-  "password": "senha_nova"
+    "host": "ftp.dominiosistemas.com.br",
+    "user": "supuns",
+    "password_enc": "VjH0...<token base64>..."
 }
 ```
 
-Caso o Gist esteja inacessível (sem internet, Gist indisponível, etc.), o Launcher usa automaticamente os valores de **fallback** embutidos no código, garantindo que nunca quebre sem aviso.
+O campo legado `"password"` (texto puro) ainda é aceito para compatibilidade, mas seu uso é desencorajado. Se ambos os campos estiverem presentes, `password_enc` tem prioridade.
 
-Para atualizar a senha FTP: basta editar o arquivo `ftp_config.json` no Gist — todos os usuários passarão a usar a nova senha na próxima vez que verificarem atualizações, **sem necessidade de baixar uma nova versão do Launcher**.
+### Atualizando a senha do FTP
+
+Sempre que a senha do servidor FTP mudar, execute o utilitário incluído no repositório:
+
+```bash
+python gerar_senha_cripto.py
+```
+
+Ele pede a senha nova (sem ecoar no terminal), gera um token V1 e imprime um JSON pronto para colar no Gist. Após salvar o Gist, todos os Launchers instalados passarão a usar a nova senha automaticamente **sem necessidade de recompilar ou redistribuir o `.exe`**.
+
+> **Nota:** `gerar_senha_cripto.py` importa `_encrypt_password` / `_decrypt_password` do próprio `launcher_main.py`, portanto a `SECRET` usada para gerar tokens e a usada para decifrá-los **nunca ficam dessincronizadas**.
+
+### Cache-buster de CDN
+
+O CDN do GitHub (Fastly) cacheia o URL *raw* do Gist por aproximadamente 5 minutos. Para que uma mudança no Gist reflita imediatamente no Launcher, cada requisição adiciona o parâmetro `?_=<unix_timestamp>` — isso muda a URL a cada chamada, forçando o CDN a buscar a versão atual no origem.
+
+### Fallback
+
+Caso o Gist esteja inacessível (sem internet, Gist indisponível, HMAC inválido, JSON malformado, etc.), o Launcher usa automaticamente os valores de **fallback** embutidos no código, garantindo que nunca quebre sem aviso.
 
 ---
 
