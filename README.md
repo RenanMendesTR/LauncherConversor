@@ -153,5 +153,8 @@ Na primeira execução após migração, arquivos `.txt` legados (`last_update_t
 ## Build
 
 ```bash
-pyinstaller launcher.spec
+pyinstaller --noconsole --onefile --icon=icone_multi.ico --name Launcher launcher_main.py ^
+    --add-data "launcher_ui.py;." ^
+    --add-data "login_ui.py;." ^
+    --add-data "login_main.py;."
 ```
