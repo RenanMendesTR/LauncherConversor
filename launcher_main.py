@@ -201,10 +201,12 @@ class LauncherApp(LauncherUI):
     def _load_app_state(self):
         """Carrega o estado (versão instalada, botões) para o app selecionado."""
         app_installed = (self._cfg["local_folder"] / self._cfg["start_exe"]).exists()
+        folder_exists = self._cfg["local_folder"].exists()
         self.set_open_button_active(app_installed)
 
         record = self.read_local_record()
-        self._local_mdtm = record[0] if record else None
+        # Considera instalado apenas se o registro E a pasta existirem
+        self._local_mdtm = record[0] if (record and folder_exists) else None
         self._update_version_panel(self._local_mdtm, None)
 
         if self._local_mdtm:
