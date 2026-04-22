@@ -207,7 +207,7 @@ class LauncherApp(LauncherUI):
     _COMBO_TOOLTIPS = {
         0: (
             "🔗  Este conversor só pode ser iniciado através\n"
-            "do Inicializador oficial (Launcher)."
+            "do Inicializador Thomson Reuters."
         ),
         1: (
             "🔓  Este conversor pode ser executado de forma\n"
