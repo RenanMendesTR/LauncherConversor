@@ -170,6 +170,12 @@ class LauncherApp(LauncherUI):
         self._pending_remote_mdtm = None
         self._pending_remote_size = None
 
+        # Define tooltip nos itens do dropdown (visível com o combo aberto)
+        for idx, tip in self._COMBO_TOOLTIPS.items():
+            item = self.combo_app.model().item(idx)
+            if item and tip:
+                item.setToolTip(tip)
+
         self._load_app_state()
 
     def _open_settings(self):
@@ -198,11 +204,25 @@ class LauncherApp(LauncherUI):
         """Retorna a configuração do aplicativo atualmente selecionado."""
         return APP_CONFIGS[self.combo_app.currentIndex()]
 
+    _COMBO_TOOLTIPS = {
+        0: (
+            "🔗  Este conversor só pode ser iniciado através\n"
+            "do Inicializador oficial (Launcher)."
+        ),
+        1: (
+            "🔓  Este conversor pode ser executado de forma\n"
+            "independente, sem necessidade do Inicializador."
+        ),
+    }
+
     def _load_app_state(self):
         """Carrega o estado (versão instalada, botões) para o app selecionado."""
         app_installed = (self._cfg["local_folder"] / self._cfg["start_exe"]).exists()
         folder_exists = self._cfg["local_folder"].exists()
         self.set_open_button_active(app_installed)
+
+        tooltip = self._COMBO_TOOLTIPS.get(self.combo_app.currentIndex())
+        self.combo_app.setToolTip(tooltip or "")
 
         record = self.read_local_record()
         # Considera instalado apenas se o registro E a pasta existirem

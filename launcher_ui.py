@@ -294,9 +294,10 @@ class LauncherUI(QWidget):
         lbl_app.setFixedWidth(78)
 
         self.combo_app = QComboBox()
-        self.combo_app.addItem("Conversor Thomson Reuters")
-        self.combo_app.addItem("Conversor eSocial XML")
+        self.combo_app.addItem("🔗 Conversor Thomson Reuters")
+        self.combo_app.addItem("🔓 Conversor eSocial XML")
         self.combo_app.setFixedHeight(32)
+        self.combo_app.setCursor(Qt.CursorShape.PointingHandCursor)
 
         combo_row.addWidget(lbl_app)
         combo_row.addWidget(self.combo_app)
